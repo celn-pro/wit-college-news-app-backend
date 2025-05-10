@@ -39,7 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var mongoose_1 = require("mongoose");
 // import bcrypt from 'bcryptjs';
 var bcrypt = require("bcryptjs");
-var User_1 = require("../src/models/User");
+var User_1 = require("./models/User");
 // import dotenv from 'dotenv';
 var dotenv = require("dotenv");
 dotenv.config();
