@@ -4,6 +4,8 @@ import News, { INews } from '../models/News';
 import UserPreferences from '../models/UserPreferences';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { IUserPreferences } from '../models/UserPreferences';
+import Notification from '../models/Notification';
+import { io } from '../index'; // Import Socket.IO instance
 
 import multer from 'multer';
 import path from 'path';
@@ -40,6 +42,25 @@ const upload = multer({
     }
   },
 });
+
+// Notify users based on role
+const notifyUsers = async (title: string, body: string, role: string, newsId?: string) => {
+  const users = await mongoose.model('User').find({ role });
+  const notifications = users.map(async (user: any) => {
+    const notification = new Notification({
+      userId: user._id,
+      title,
+      body,
+      role,
+      read: false,
+      newsId,
+    });
+    await notification.save();
+    io.to(user._id).emit('notification', notification);
+    return notification;
+  });
+  await Promise.all(notifications);
+};
 
 // Upload image
 router.post('/upload-image', authMiddleware, upload.single('image'), async (req: AuthRequest, res: Response) => {
@@ -104,6 +125,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     await news.save();
     console.log('News created: id=', news._id, 'title=', title);
+    console.log('about to notfy users')
+
+    // Emit notification to users with matching role
+    await notifyUsers(
+      'New News Post',
+      `A new post "${title}" has been added.`,
+      news.role,
+      String(news._id)
+    );
+    console.log('finished notfying users')
     res.status(201).json({
       _id: news._id,
       title: news.title,
@@ -257,6 +288,81 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error fetching news by ID:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update news
+router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { title, content, image } = req.body;
+  const user = req.user;
+  console.log('Update news request: userId=', user?._id, 'newsId=', id);
+
+  if (user?.role !== 'admin') {
+    console.log('Unauthorized: userRole=', user?.role);
+     res.status(403).json({ message: 'Only admins can update news' });
+     return;
+  }
+
+  if (!title || !content) {
+    console.log('Missing required fields: title=', title, 'content=', !!content);
+     res.status(400).json({ message: 'Title and content are required' });
+     return;
+  }
+
+  if (title.length > 100) {
+    console.log('Title too long:', title.length);
+     res.status(400).json({ message: 'Title must be 100 characters or less' });
+     return;
+  }
+
+  if (content.length > 5000) {
+    console.log('Content too long:', content.length);
+     res.status(400).json({ message: 'Content must be 5000 characters or less' });
+     return;
+  }
+
+  try {
+    const news = await News.findById(id);
+    if (!news) {
+      console.log('News not found:', id);
+       res.status(404).json({ message: 'News not found' });
+       return;
+    }
+
+    news.title = title;
+    news.content = content;
+    if (image) news.image = image;
+    await news.save();
+
+    console.log('News updated: id=', id, 'title=', title);
+
+
+    // Emit notification to users with matching role
+    await notifyUsers(
+      'News Updated',
+      `The post "${title}" has been updated.`,
+      news.role,
+      String(news._id)
+    );
+
+    res.json({
+      _id: news._id,
+      title: news.title,
+      content: news.content,
+      category: news.category,
+      image: news.image,
+      role: news.role,
+      createdBy: news.createdBy,
+      createdAt: news.createdAt,
+      likeCount: news.likeCount,
+      viewCount: news.viewCount,
+      likedBy: news.likedBy,
+      viewedBy: news.viewedBy,
+    });
+  } catch (error: any) {
+    console.error('Error updating news:', error.message, error.stack);
     res.status(500).json({ message: 'Server error' });
   }
 });
