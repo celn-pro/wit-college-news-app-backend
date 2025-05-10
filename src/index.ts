@@ -16,7 +16,9 @@ import userRouter from './routes/users';
 import userPreferencesRouter from './routes/userPreferences';
 import commentRoutes from './routes/comments';
 
-dotenv.config();
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+
+dotenv.config({ path: envFile });
 
 const app = express();
 app.use(cors());
@@ -66,8 +68,8 @@ cron.schedule('0 9 * * *', async () => { // Every day at 9 AM
   );
 });
 
-const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost/collegenews';
+const PORT:any = process.env.PORT;
+const MONGODB_URI:any = process.env.MONGODB_URI;
 
 mongoose
   .connect(MONGODB_URI)
