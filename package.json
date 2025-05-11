@@ -19,7 +19,10 @@
   },
   "scripts": {
     "start:dev": "cross-env NODE_ENV=development nodemon src/index.ts",
+    "start": "NODE_ENV=production node dist/index.js",
     "start:prod": "cross-env NODE_ENV=production nodemon src/index.ts",
+    "create-admin:dev": "cross-env NODE_ENV=development ENVFILE=.env.development ts-node src/createAdminUser.ts",
+    "create-admin:prod": "cross-env NODE_ENV=production ENVFILE=.env.production ts-node src/createAdminUser.ts",
     "build": "tsc",
     "seed": "ts-node src/seed.ts"
   },

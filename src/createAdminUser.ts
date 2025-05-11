@@ -8,7 +8,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost/collegenews';
+const MONGODB_URI:any = process.env.MONGODB_URI;
 
 const createAdminUser = async () => {
   try {

@@ -43,7 +43,7 @@ var User_1 = require("./models/User");
 // import dotenv from 'dotenv';
 var dotenv = require("dotenv");
 dotenv.config();
-var MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost/collegenews';
+var MONGODB_URI = process.env.MONGODB_URI;
 var createAdminUser = function () { return __awaiter(void 0, void 0, void 0, function () {
     var existingUser, hashedPassword, adminUser, error_1;
     return __generator(this, function (_a) {
