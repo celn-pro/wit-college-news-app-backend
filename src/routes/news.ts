@@ -6,6 +6,8 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { IUserPreferences } from '../models/UserPreferences';
 import Notification from '../models/Notification';
 import { io } from '../index'; // Import Socket.IO instance
+import cloudinary from '../config/cloudinary';
+import streamifier from 'streamifier';
 
 import multer from 'multer';
 import path from 'path';
@@ -13,35 +15,6 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 
 const router = Router();
-
-// Configure multer for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../assets/news-images');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const filename = `${uuidv4()}${ext}`;
-    cb(null, filename);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only JPEG and PNG images are allowed'));
-    }
-  },
-});
 
 // Notify users based on role
 const notifyUsers = async (title: string, body: string, role: string, newsId?: string) => {
@@ -62,23 +35,65 @@ const notifyUsers = async (title: string, body: string, role: string, newsId?: s
   await Promise.all(notifications);
 };
 
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../assets/news-images');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `${uuidv4()}${ext}`;
+    cb(null, filename);
+  },
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG and PNG images are allowed'));
+    }
+  },
+});
+
 // Upload image
-router.post('/upload-image', authMiddleware, upload.single('image'), async (req: AuthRequest, res: Response) => {
+router.post('/upload-image', authMiddleware, upload.single('image'), async (req: AuthRequest, res) => {
   const user = req.user;
   console.log('Upload image request: userId=', user?._id);
 
   if (!req.file) {
-    console.log('No file uploaded');
-    res.status(400).json({ message: 'No image uploaded' });
-    return;
+     res.status(400).json({ message: 'No image uploaded' });
+     return;
   }
 
   try {
-    const imagePath = `/assets/news-images/${req.file.filename}`;
-    console.log('Image uploaded: path=', imagePath);
-    res.json({ imagePath });
-  } catch (error: any) {
-    console.error('Error uploading image:', error.message, error.stack);
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'college-news',
+        public_id: uuidv4(),
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+           res.status(500).json({ message: 'Upload failed' });
+           return;
+        }
+        console.log('Image uploaded to Cloudinary:', result?.secure_url);
+        res.json({ imageUrl: result?.secure_url });
+      }
+    );
+
+    streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+  } catch (error) {
+    console.error('Unexpected error uploading image:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

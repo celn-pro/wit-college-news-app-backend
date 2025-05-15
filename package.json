@@ -4,6 +4,7 @@
   "dependencies": {
     "@onesignal/node-onesignal": "^5.0.0-alpha-02",
     "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.6.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
@@ -14,6 +15,7 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.2",
     "socket.io": "^4.8.1",
+    "streamifier": "^0.1.1",
     "uuid": "^11.1.0",
     "ws": "^8.18.2"
   },
@@ -35,6 +37,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.17",
     "@types/socket.io": "^3.0.1",
+    "@types/streamifier": "^0.1.2",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8",
     "cross-env": "^7.0.3",

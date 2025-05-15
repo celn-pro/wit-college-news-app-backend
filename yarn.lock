@@ -326,6 +326,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/streamifier@npm:^0.1.2":
+  version: 0.1.2
+  resolution: "@types/streamifier@npm:0.1.2"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/475f787ae2b992a22f3b794ad0920d2b43e0541d126020c1edb25ebd60b736122d1c4db6813aa8fa9ad5cfed49b700a1e6ee5154acabac2ebc2bed7b40c0d667
+  languageName: node
+  linkType: hard
+
 "@types/uuid@npm:^10.0.0":
   version: 10.0.0
   resolution: "@types/uuid@npm:10.0.0"
@@ -658,6 +667,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cloudinary@npm:^2.6.1":
+  version: 2.6.1
+  resolution: "cloudinary@npm:2.6.1"
+  dependencies:
+    lodash: "npm:^4.17.21"
+    q: "npm:^1.5.1"
+  checksum: 10c0/148693dfe8fb1ba918f1e2c3e7bfd6f46224b00f157978b7919260a31e6db7e17dd8d3416360253c1125aa9dbd1fb08913962e10b9c2b5e083597814a2c2f875
+  languageName: node
+  linkType: hard
+
 "collegenews-backend@workspace:.":
   version: 0.0.0-use.local
   resolution: "collegenews-backend@workspace:."
@@ -671,9 +690,11 @@ __metadata:
     "@types/node-cron": "npm:^3.0.11"
     "@types/nodemailer": "npm:^6.4.17"
     "@types/socket.io": "npm:^3.0.1"
+    "@types/streamifier": "npm:^0.1.2"
     "@types/uuid": "npm:^10.0.0"
     "@types/ws": "npm:^8"
     bcryptjs: "npm:^3.0.2"
+    cloudinary: "npm:^2.6.1"
     cors: "npm:^2.8.5"
     cross-env: "npm:^7.0.3"
     dotenv: "npm:^16.5.0"
@@ -686,6 +707,7 @@ __metadata:
     nodemailer: "npm:^7.0.2"
     nodemon: "npm:^3.1.10"
     socket.io: "npm:^4.8.1"
+    streamifier: "npm:^0.1.1"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.8.3"
     uuid: "npm:^11.1.0"
@@ -814,7 +836,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"debug@npm:4, debug@npm:4.x, debug@npm:^4, debug@npm:^4.3.4, debug@npm:^4.3.5, debug@npm:^4.4.0":
+"debug@npm:4, debug@npm:^4.3.4":
+  version: 4.4.1
+  resolution: "debug@npm:4.4.1"
+  dependencies:
+    ms: "npm:^2.1.3"
+  peerDependenciesMeta:
+    supports-color:
+      optional: true
+  checksum: 10c0/d2b44bc1afd912b49bb7ebb0d50a860dc93a4dd7d946e8de94abc957bb63726b7dd5aa48c18c2386c379ec024c46692e15ed3ed97d481729f929201e671fcd55
+  languageName: node
+  linkType: hard
+
+"debug@npm:4.x, debug@npm:^4, debug@npm:^4.3.5, debug@npm:^4.4.0":
   version: 4.4.0
   resolution: "debug@npm:4.4.0"
   dependencies:
@@ -1560,6 +1594,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lodash@npm:^4.17.21":
+  version: 4.17.21
+  resolution: "lodash@npm:4.17.21"
+  checksum: 10c0/d8cbea072bb08655bb4c989da418994b073a608dffa608b09ac04b43a791b12aeae7cd7ad919aa4c925f33b48490b5cfe6c1f71d827956071dae2e7bb3a6b74c
+  languageName: node
+  linkType: hard
+
 "lru-cache@npm:^10.0.1, lru-cache@npm:^10.2.0":
   version: 10.4.3
   resolution: "lru-cache@npm:10.4.3"
@@ -2119,6 +2160,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"q@npm:^1.5.1":
+  version: 1.5.1
+  resolution: "q@npm:1.5.1"
+  checksum: 10c0/7855fbdba126cb7e92ef3a16b47ba998c0786ec7fface236e3eb0135b65df36429d91a86b1fff3ab0927b4ac4ee88a2c44527c7c3b8e2a37efbec9fe34803df4
+  languageName: node
+  linkType: hard
+
 "qs@npm:^6.14.0":
   version: 6.14.0
   resolution: "qs@npm:6.14.0"
@@ -2226,7 +2274,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.3.5, semver@npm:^7.5.3, semver@npm:^7.5.4":
+"semver@npm:^7.3.5":
+  version: 7.7.2
+  resolution: "semver@npm:7.7.2"
+  bin:
+    semver: bin/semver.js
+  checksum: 10c0/aca305edfbf2383c22571cb7714f48cadc7ac95371b4b52362fb8eeffdfbc0de0669368b82b2b15978f8848f01d7114da65697e56cd8c37b0dab8c58e543f9ea
+  languageName: node
+  linkType: hard
+
+"semver@npm:^7.5.3, semver@npm:^7.5.4":
   version: 7.7.1
   resolution: "semver@npm:7.7.1"
   bin:
@@ -2452,6 +2509,13 @@ __metadata:
   version: 2.0.1
   resolution: "statuses@npm:2.0.1"
   checksum: 10c0/34378b207a1620a24804ce8b5d230fea0c279f00b18a7209646d5d47e419d1cc23e7cbf33a25a1e51ac38973dc2ac2e1e9c647a8e481ef365f77668d72becfd0
+  languageName: node
+  linkType: hard
+
+"streamifier@npm:^0.1.1":
+  version: 0.1.1
+  resolution: "streamifier@npm:0.1.1"
+  checksum: 10c0/132035d8519c65f3903047b06b003201d3eaef6eb164cf5ba86ee22c2203c3a0109198946dc579002e39f704b568bedc8ce61a729e0a8dd00249d0a9658353a4
   languageName: node
   linkType: hard
 
