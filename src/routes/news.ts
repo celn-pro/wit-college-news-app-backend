@@ -303,13 +303,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       ];
     }
 
+    const news = await News.find(query).sort({ createdAt: -1 });
     const preferences = await UserPreferences.findOne({ userId: user?._id });
     const archivedNewsIds = preferences?.archivedNewsIds || [];
-    query._id = { $nin: archivedNewsIds };
 
-    const news = await News.find(query).sort({ createdAt: -1 });
     console.log('Fetched news:', news.length);
-    res.json(news);
+    res.json({ news, archivedNewsIds });
   } catch (error: any) {
     console.error('Error fetching news:', error.message, error.stack);
     res.status(500).json({ message: 'Server error' });
