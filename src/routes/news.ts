@@ -5,10 +5,9 @@ import UserPreferences from '../models/UserPreferences';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { IUserPreferences } from '../models/UserPreferences';
 import Notification from '../models/Notification';
-import { io } from '../index'; // Import Socket.IO instance
+import { io } from '../index';
 import cloudinary from '../config/cloudinary';
 import streamifier from 'streamifier';
-
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -70,8 +69,8 @@ router.post('/upload-image', authMiddleware, upload.single('image'), async (req:
   console.log('Upload image request: userId=', user?._id);
 
   if (!req.file) {
-     res.status(400).json({ message: 'No image uploaded' });
-     return;
+    res.status(400).json({ message: 'No image uploaded' });
+    return;
   }
 
   try {
@@ -83,8 +82,8 @@ router.post('/upload-image', authMiddleware, upload.single('image'), async (req:
       (error, result) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
-           res.status(500).json({ message: 'Upload failed' });
-           return;
+          res.status(500).json({ message: 'Upload failed' });
+          return;
         }
         console.log('Image uploaded to Cloudinary:', result?.secure_url);
         res.json({ imageUrl: result?.secure_url });
@@ -140,16 +139,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     await news.save();
     console.log('News created: id=', news._id, 'title=', title);
-    console.log('about to notfy users')
 
-    // Emit notification to users with matching role
     await notifyUsers(
       'New News Post',
       `A new post "${title}" has been added.`,
       news.role,
       String(news._id)
     );
-    console.log('finished notfying users')
+
     res.status(201).json({
       _id: news._id,
       title: news.title,
@@ -159,6 +156,11 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       role: news.role,
       createdBy: news.createdBy,
       createdAt: news.createdAt,
+      updatedAt: news.updatedAt,
+      likeCount: news.likeCount,
+      viewCount: news.viewCount,
+      likedBy: news.likedBy,
+      viewedBy: news.viewedBy,
     });
   } catch (error: any) {
     console.error('Error creating news:', error.message, error.stack);
@@ -168,14 +170,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // Search news, excluding user's archived news
 router.get('/search', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { q, role } = req.query;
+  const { q, role, category, since } = req.query;
   const userId = req.user?._id;
-  console.log('Search request: q=', q, 'role=', role, 'userId=', userId);
+  console.log('Search request: q=', q, 'role=', role, 'category=', category, 'since=', since, 'userId=', userId);
+
   if (!userId) {
     console.log('Missing userId in request');
     res.status(401).json({ message: 'User not authenticated' });
     return;
   }
+
   if (!q) {
     console.log('Missing search query');
     res.status(400).json({ error: 'Search query (q) is required' });
@@ -183,15 +187,26 @@ router.get('/search', authMiddleware, async (req: AuthRequest, res: Response) =>
   }
 
   try {
-    let query: any = {};
-    query.$text = { $search: q as string };
+    let query: any = { $text: { $search: q as string } };
     if (role) {
       query.$or = [{ role }, { role: 'all' }];
     } else {
       query.role = 'all';
     }
-    if (req.query.category) {
-      query.category = { $regex: req.query.category as string, $options: 'i' };
+    if (category) {
+      query.category = { $regex: category as string, $options: 'i' };
+    }
+    if (since) {
+      const sinceDate = new Date(since as string);
+      if (isNaN(sinceDate.getTime())) {
+        console.log('Invalid since date:', since);
+        res.status(400).json({ message: 'Invalid since date' });
+        return;
+      }
+      query.$or = [
+        { createdAt: { $gt: sinceDate } },
+        { updatedAt: { $gt: sinceDate } },
+      ];
     }
 
     const preferences = await UserPreferences.findOne({ userId });
@@ -209,14 +224,16 @@ router.get('/search', authMiddleware, async (req: AuthRequest, res: Response) =>
 
 // Fetch user's archived news
 router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { role } = req.query;
+  const { role, since } = req.query;
   const userId = req.user?._id;
-  console.log('Fetching archived news, role:', role, 'userId:', userId);
+  console.log('Fetching archived news, role:', role, 'since:', since, 'userId:', userId);
+
   if (!userId) {
     console.log('Missing userId in request');
     res.status(401).json({ message: 'User not authenticated' });
     return;
   }
+
   try {
     const preferences = await UserPreferences.findOne({ userId });
     const archivedNewsIds = preferences?.archivedNewsIds || [];
@@ -237,6 +254,18 @@ router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) 
     if (role !== 'admin') {
       query.category = { $in: ['General', 'Sports', 'Events', 'Academics'] };
     }
+    if (since) {
+      const sinceDate = new Date(since as string);
+      if (isNaN(sinceDate.getTime())) {
+        console.log('Invalid since date:', since);
+        res.status(400).json({ message: 'Invalid since date' });
+        return;
+      }
+      query.$or = [
+        { createdAt: { $gt: sinceDate } },
+        { updatedAt: { $gt: sinceDate } },
+      ];
+    }
 
     const news = await News.find(query).sort({ createdAt: -1 });
     console.log('Fetched archived news:', news.length);
@@ -249,14 +278,35 @@ router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) 
 
 // Get all news
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { role, category, since } = req.query;
   const user = req.user;
-  console.log('Get news request: userId=', user?._id);
+  console.log('Get news request: userId=', user?._id, 'role=', role, 'category=', category, 'since=', since);
 
   try {
     const query: any = {};
     if (user?.role !== 'admin') {
       query.$or = [{ role: 'all' }, { role: user?.role }];
     }
+    if (category) {
+      query.category = { $regex: category as string, $options: 'i' };
+    }
+    if (since) {
+      const sinceDate = new Date(since as string);
+      if (isNaN(sinceDate.getTime())) {
+        console.log('Invalid since date:', since);
+        res.status(400).json({ message: 'Invalid since date' });
+        return;
+      }
+      query.$or = [
+        { createdAt: { $gt: sinceDate } },
+        { updatedAt: { $gt: sinceDate } },
+      ];
+    }
+
+    const preferences = await UserPreferences.findOne({ userId: user?._id });
+    const archivedNewsIds = preferences?.archivedNewsIds || [];
+    query._id = { $nin: archivedNewsIds };
+
     const news = await News.find(query).sort({ createdAt: -1 });
     console.log('Fetched news:', news.length);
     res.json(news);
@@ -276,14 +326,14 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     const news = await News.findById(id);
     if (!news) {
       console.log('News not found:', id);
-       res.status(404).json({ message: 'News not found' });
-       return;
+      res.status(404).json({ message: 'News not found' });
+      return;
     }
 
     if (user?.role !== 'admin' && !['all', user?.role].includes(news.role)) {
       console.log('Unauthorized access: userRole=', user?.role, 'newsRole=', news.role);
-       res.status(403).json({ message: 'Unauthorized' });
-       return;
+      res.status(403).json({ message: 'Unauthorized' });
+      return;
     }
 
     console.log('Fetched news:', news._id);
@@ -296,6 +346,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       role: news.role,
       createdBy: news.createdBy,
       createdAt: news.createdAt,
+      updatedAt: news.updatedAt,
       likeCount: news.likeCount,
       viewCount: news.viewCount,
       likedBy: news.likedBy,
@@ -316,34 +367,34 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
   if (user?.role !== 'admin') {
     console.log('Unauthorized: userRole=', user?.role);
-     res.status(403).json({ message: 'Only admins can update news' });
-     return;
+    res.status(403).json({ message: 'Only admins can update news' });
+    return;
   }
 
   if (!title || !content) {
     console.log('Missing required fields: title=', title, 'content=', !!content);
-     res.status(400).json({ message: 'Title and content are required' });
-     return;
+    res.status(400).json({ message: 'Title and content are required' });
+    return;
   }
 
   if (title.length > 100) {
     console.log('Title too long:', title.length);
-     res.status(400).json({ message: 'Title must be 100 characters or less' });
-     return;
+    res.status(400).json({ message: 'Title must be 100 characters or less' });
+    return;
   }
 
   if (content.length > 5000) {
     console.log('Content too long:', content.length);
-     res.status(400).json({ message: 'Content must be 5000 characters or less' });
-     return;
+    res.status(400).json({ message: 'Content must be 5000 characters or less' });
+    return;
   }
 
   try {
     const news = await News.findById(id);
     if (!news) {
       console.log('News not found:', id);
-       res.status(404).json({ message: 'News not found' });
-       return;
+      res.status(404).json({ message: 'News not found' });
+      return;
     }
 
     news.title = title;
@@ -353,8 +404,6 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     console.log('News updated: id=', id, 'title=', title);
 
-
-    // Emit notification to users with matching role
     await notifyUsers(
       'News Updated',
       `The post "${title}" has been updated.`,
@@ -371,6 +420,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       role: news.role,
       createdBy: news.createdBy,
       createdAt: news.createdAt,
+      updatedAt: news.updatedAt,
       likeCount: news.likeCount,
       viewCount: news.viewCount,
       likedBy: news.likedBy,
@@ -460,6 +510,7 @@ router.post('/like', authMiddleware, async (req: AuthRequest, res: Response) => 
       likeCount: news.likeCount,
       likedBy: news.likedBy,
       viewCount: news.viewCount,
+      updatedAt: news.updatedAt,
     });
   } catch (error: any) {
     console.error('Error liking news:', error.message, error.stack);
@@ -506,6 +557,7 @@ router.post('/view', authMiddleware, async (req: AuthRequest, res: Response) => 
       viewCount: news.viewCount,
       likedBy: news.likedBy,
       viewedBy: news.viewedBy,
+      updatedAt: news.updatedAt,
     });
   } catch (error: any) {
     console.error('Error incrementing view count:', error.message, error.stack);
