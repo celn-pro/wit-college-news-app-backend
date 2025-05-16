@@ -230,8 +230,8 @@ router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) 
 
   if (!userId) {
     console.log('Missing userId in request');
-    res.status(401).json({ message: 'User not authenticated' });
-    return;
+     res.status(401).json({ message: 'User not authenticated' });
+     return;
   }
 
   try {
@@ -246,8 +246,8 @@ router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) 
 
     if (validNewsIds.length === 0) {
       console.log('No valid archived news IDs');
-      res.json([]);
-      return;
+       res.json([]);
+       return;
     }
 
     const query: any = { _id: { $in: validNewsIds } };
@@ -258,8 +258,8 @@ router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) 
       const sinceDate = new Date(since as string);
       if (isNaN(sinceDate.getTime())) {
         console.log('Invalid since date:', since);
-        res.status(400).json({ message: 'Invalid since date' });
-        return;
+         res.status(400).json({ message: 'Invalid since date' });
+         return;
       }
       query.$or = [
         { createdAt: { $gt: sinceDate } },
@@ -278,9 +278,9 @@ router.get('/archived', authMiddleware, async (req: AuthRequest, res: Response) 
 
 // Get all news
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { role, category, since } = req.query;
+  const { role, category, since, includeArchived } = req.query;
   const user = req.user;
-  console.log('Get news request: userId=', user?._id, 'role=', role, 'category=', category, 'since=', since);
+  console.log('Get news request: userId=', user?._id, 'role=', role, 'category=', category, 'since=', since, 'includeArchived=', includeArchived);
 
   try {
     const query: any = {};
@@ -294,8 +294,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       const sinceDate = new Date(since as string);
       if (isNaN(sinceDate.getTime())) {
         console.log('Invalid since date:', since);
-        res.status(400).json({ message: 'Invalid since date' });
-        return;
+         res.status(400).json({ message: 'Invalid since date' });
+         return;
       }
       query.$or = [
         { createdAt: { $gt: sinceDate } },
@@ -303,12 +303,16 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const news = await News.find(query).sort({ createdAt: -1 });
-    const preferences = await UserPreferences.findOne({ userId: user?._id });
-    const archivedNewsIds = preferences?.archivedNewsIds || [];
+    // Only exclude archived news if includeArchived is not true
+    if (includeArchived !== 'true') {
+      const preferences = await UserPreferences.findOne({ userId: user?._id });
+      const archivedNewsIds = preferences?.archivedNewsIds || [];
+      query._id = { $nin: archivedNewsIds };
+    }
 
+    const news = await News.find(query).sort({ createdAt: -1 });
     console.log('Fetched news:', news.length);
-    res.json({ news, archivedNewsIds });
+    res.json(news);
   } catch (error: any) {
     console.error('Error fetching news:', error.message, error.stack);
     res.status(500).json({ message: 'Server error' });
@@ -439,8 +443,8 @@ router.post('/toggle-archive', authMiddleware, async (req: AuthRequest, res: Res
 
   if (!newsId) {
     console.log('Missing newsId');
-    res.status(400).json({ message: 'News ID is required' });
-    return;
+     res.status(400).json({ message: 'News ID is required' });
+     return;
   }
 
   try {
@@ -457,7 +461,7 @@ router.post('/toggle-archive', authMiddleware, async (req: AuthRequest, res: Res
       preferences.archivedNewsIds = archivedNewsIds;
       await preferences.save();
     } else {
-      const newPreferences: IUserPreferences = new UserPreferences({
+      const newPreferences = new UserPreferences({
         userId: user!._id,
         archivedNewsIds,
       });
@@ -465,7 +469,9 @@ router.post('/toggle-archive', authMiddleware, async (req: AuthRequest, res: Res
     }
 
     console.log('Archive toggled: userId=', user?._id, 'newsId=', newsId, 'archived=', archivedNewsIds.includes(newsId));
-    res.json({ archivedNewsIds });
+    // Return the updated archivedNewsIds and the news item if it exists
+    const newsItem = await News.findById(newsId);
+    res.json({ archivedNewsIds, newsItem });
   } catch (error: any) {
     console.error('Error toggling archive:', error.message, error.stack);
     res.status(500).json({ message: 'Server error' });
