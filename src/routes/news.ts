@@ -168,6 +168,50 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Delete news
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const user = req.user;
+  console.log('Delete news request: userId=', user?._id, 'newsId=', id);
+
+  if (user?.role !== 'admin') {
+    console.log('Unauthorized: userRole=', user?.role);
+    res.status(403).json({ message: 'Only admins can delete news' });
+    return;
+  }
+
+  try {
+    const news = await News.findById(id);
+    if (!news) {
+      console.log('News not found:', id);
+      res.status(404).json({ message: 'News not found' });
+      return;
+    }
+
+    await news.deleteOne();
+    console.log('News deleted: id=', id);
+
+    // Notify users about deletion
+    await notifyUsers(
+      'News Deleted',
+      `The post "${news.title}" has been deleted.`,
+      news.role,
+      String(news._id)
+    );
+
+    // Remove news from all users' archivedNewsIds
+    await UserPreferences.updateMany(
+      { archivedNewsIds: id },
+      { $pull: { archivedNewsIds: id } }
+    );
+
+    res.json({ message: 'News deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting news:', error.message, error.stack);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Search news, excluding user's archived news
 router.get('/search', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { q, role, category, since } = req.query;
@@ -524,48 +568,27 @@ router.post('/like', authMiddleware, async (req: AuthRequest, res: Response) => 
 });
 
 // Increment view count
-router.post('/view', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { newsId, userId } = req.body;
-  console.log('View news request: newsId=', newsId, 'userId=', userId);
-
-  if (!newsId) {
-    console.log('Missing newsId');
-    res.status(400).json({ message: 'News ID is required' });
-    return;
+router.post('/:id/view', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+  if (!userId) {
+     res.status(400).json({ message: 'User ID required' });
+     return;
   }
-
   try {
-    const news = await News.findById(newsId);
+    const news = await News.findById(id);
     if (!news) {
-      console.log('News not found:', newsId);
-      res.status(404).json({ message: 'News not found' });
-      return;
+       res.status(404).json({ message: 'News not found' });
+       return;
     }
-
-    let updated = false;
-    if (userId && !news.viewedBy.includes(userId)) {
-      news.viewedBy.push(userId);
+    if (!news.viewedBy.includes(userId)) {
       news.viewCount += 1;
-      updated = true;
-    }
-
-    if (updated) {
+      news.viewedBy.push(userId);
       await news.save();
-      console.log('View count incremented: newsId=', newsId, 'viewCount=', news.viewCount);
-    } else {
-      console.log('View already counted: newsId=', newsId, 'userId=', userId);
     }
-
-    res.json({
-      _id: news._id,
-      likeCount: news.likeCount,
-      viewCount: news.viewCount,
-      likedBy: news.likedBy,
-      viewedBy: news.viewedBy,
-      updatedAt: news.updatedAt,
-    });
+    res.json(news);
   } catch (error: any) {
-    console.error('Error incrementing view count:', error.message, error.stack);
+    console.error('View count error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
