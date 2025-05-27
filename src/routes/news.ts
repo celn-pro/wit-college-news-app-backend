@@ -480,7 +480,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 // Toggle archive status
-router.post('/toggle-archive', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/toggle-archive', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { newsId } = req.body;
   const user = req.user;
   console.log('Toggle archive request: userId=', user?._id, 'newsId=', newsId);
