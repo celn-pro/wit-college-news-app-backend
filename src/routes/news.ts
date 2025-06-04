@@ -17,7 +17,9 @@ const router = Router();
 
 // Notify users based on role
 const notifyUsers = async (title: string, body: string, role: string, newsId?: string) => {
-  const users = await mongoose.model('User').find({ role });
+  const users = role === 'all'
+    ? await mongoose.model('User').find({})
+    : await mongoose.model('User').find({ role });
   const notifications = users.map(async (user: any) => {
     const notification = new Notification({
       userId: user._id,

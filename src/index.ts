@@ -76,7 +76,7 @@ mongoose
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // Function to notify users (for use in routes)
 const notifyUsers = async (title: string, body: string, role: string, newsId?: string) => {
